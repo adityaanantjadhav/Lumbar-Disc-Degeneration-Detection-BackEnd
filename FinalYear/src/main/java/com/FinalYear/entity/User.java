@@ -37,12 +37,13 @@ public class User {
     private User doctor;
 
     // Only for doctor users
+    // In User entity, add orphanRemoval to patients
     @OneToMany(mappedBy = "doctor")
     private List<User> patients = new ArrayList<>();
 
 
     //Only for doctors
-    @OneToMany(mappedBy="doctor", cascade=CascadeType.ALL)
+    @OneToMany(mappedBy="doctor",orphanRemoval = true, cascade=CascadeType.ALL)
     private List<PatientRequest> incomingRequests = new ArrayList<>();;
     // getters and setters
 }

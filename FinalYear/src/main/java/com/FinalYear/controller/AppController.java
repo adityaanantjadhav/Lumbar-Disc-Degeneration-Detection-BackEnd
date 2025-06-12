@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "http://127.0.0.1:5500", exposedHeaders = "Authorization")
+@CrossOrigin(origins = "http://127.0.0.1:5501", exposedHeaders = "Authorization")
 public class AppController {
 
     @Autowired
@@ -59,10 +59,6 @@ public class AppController {
         System.out.println("JWT:"+jwt);
         return ResponseEntity.ok().header("Authorization", "Bearer " + jwt).body("Login successful");
     }
-
-
-
-
 
     @GetMapping()
     public ResponseEntity<?> getUser(int userId){
@@ -140,6 +136,18 @@ public class AppController {
         return new ResponseEntity<String>("Mail Successfully sent",HttpStatus.OK);
     }
 
+    @PostMapping("/mail-doctor-results")
+    public ResponseEntity<?> mailDoctorResults(@RequestHeader("Authorization") String token,@RequestParam Long resultId){
+        token=token.substring(7);
+        String userEmail=jwtService.extractUsername(token);
+
+        if(appService.mailResultToDoctor(userEmail,resultId)==null){
+            return null;
+        }
+        return new ResponseEntity<String>("Mail Successfully sent",HttpStatus.OK);
+    }
+
+
 
     @GetMapping("/get-previous-results")
     public ResponseEntity<?> getPreviousResults(@RequestHeader("Authorization") String token){
@@ -175,14 +183,14 @@ public class AppController {
 
 
     @GetMapping("/get-patient-result/{id}")
-    public ResponseEntity<?> getPatientResult(@PathVariable("id") Long id,@RequestHeader("Authorization") String token){
+    public ResponseEntity<?> getPatientResult(@PathVariable("id") String id,@RequestHeader("Authorization") String token){
         token=token.substring(7);
         String userEmail=jwtService.extractUsername(token);
         return new ResponseEntity<List<ResultResponseDto>>(appService.getPatientPreviousResults(userEmail,id),HttpStatus.OK);
     }
 
     @GetMapping("/get-patient-info/{id}")
-    public ResponseEntity<?> getPatientInfo(@PathVariable("id") Long id,@RequestHeader("Authorization") String token){
+    public ResponseEntity<?> getPatientInfo(@PathVariable("id") String id,@RequestHeader("Authorization") String token){
         token=token.substring(7);
         String userEmail=jwtService.extractUsername(token);
         return new ResponseEntity<PatientDto>(appService.getPatientInfo(userEmail,id),HttpStatus.OK);
@@ -204,10 +212,13 @@ public class AppController {
     }
 
     @DeleteMapping("/remove-patient")
-    public ResponseEntity<?> removePatient(@RequestHeader("Authorization") String token,@RequestParam("patientEmail") String patientEmail){
-        token=token.substring(7);
-        String doctorEmail=jwtService.extractUsername(token);
-        return new ResponseEntity<String>(appService.removePatient(doctorEmail,patientEmail),HttpStatus.OK);
+    public ResponseEntity<?> removePatient(
+            @RequestHeader("Authorization") String token,
+            @RequestParam("patientEmail") String patientEmail) { // Keep param name consistent
+
+        token = token.replace("Bearer ", ""); // More robust than substring(7)
+        String doctorEmail = jwtService.extractUsername(token);
+        return new ResponseEntity<>(appService.removePatient(doctorEmail, patientEmail), HttpStatus.OK);
     }
 
 
@@ -216,6 +227,13 @@ public class AppController {
         token=token.substring(7);
         String userEmail=jwtService.extractUsername(token);
         return new ResponseEntity<String>(appService.requestDoctor(userEmail,doctorEmail),HttpStatus.OK);
+    }
+
+    @GetMapping("/get-doctor-details")
+    public ResponseEntity<?> getDoctorDetails(@RequestHeader("Authorization") String token){
+        token=token.substring(7);
+        String userEmail=jwtService.extractUsername(token);
+        return new ResponseEntity<PatientDto>(appService.getDoctorDetails(userEmail),HttpStatus.OK);
     }
 
 }

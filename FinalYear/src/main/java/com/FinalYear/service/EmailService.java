@@ -43,7 +43,7 @@ public class EmailService {
                     "\nPrediction:\n" + details, false); // false = not HTML
 
             // Path where the image is stored
-            String imagePath = "C:/yolo11/flask_app/static/processed_images/" + result.getImageName();
+            String imagePath = "C:/yolo11/frontend and flask/static/processed_images/" + result.getImageName();
             FileSystemResource file = new FileSystemResource(new File(imagePath));
             helper.addAttachment(result.getImageName(), file);
 

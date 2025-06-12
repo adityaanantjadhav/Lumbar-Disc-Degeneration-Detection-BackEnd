@@ -9,6 +9,7 @@ import com.FinalYear.entity.User;
 import com.FinalYear.repository.PatientRequestRepo;
 import com.FinalYear.repository.ResultRepository;
 import com.FinalYear.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpEntity;
@@ -29,6 +30,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.http.*;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @Service
@@ -201,7 +203,8 @@ public class AppService {
             throw new RuntimeException("Unauthorized");
         }
 
-        String imagePath = "C:/yolo11/flask_app/static/processed_images/" + result.getImageName();
+        String imagePath = "C:/yolo11/frontend and flask/static/processed_images/" + result.getImageName();
+
 
         // Read image into byte array
         File imgFile = new File(imagePath);
@@ -255,11 +258,11 @@ public class AppService {
         return patientList;
     }
 
-    public List<ResultResponseDto> getPatientPreviousResults(String userEmail, Long patientId) {
+    public List<ResultResponseDto> getPatientPreviousResults(String userEmail, String patientId) {
 
         User user=userRepo.findByEmail(userEmail);
         Optional<User> patientOpt = user.getPatients().stream()
-                .filter(p -> p.getId().equals(patientId))
+                .filter(p -> p.getEmail().equals(patientId))
                 .findFirst();
 
         if (patientOpt.isEmpty()) {
@@ -269,6 +272,7 @@ public class AppService {
         return getPreviousResults(patientOpt.get().getEmail());
     }
 
+    @Transactional
     public PatientDto addPatient(String doctorEmail, String patientEmail) {
 
         User doctor=userRepo.findByEmail(doctorEmail);
@@ -280,7 +284,6 @@ public class AppService {
         p.setApproved(true);
         patientRequestRepo.save(p);
 
-
         patient.setDoctor(doctor);
         userRepo.save(doctor);
         userRepo.save(patient);
@@ -288,6 +291,7 @@ public class AppService {
         return patientDto;
     }
 
+    @Transactional
     public String rejectPatient(String doctorEmail, String patientEmail) {
 
         User user=userRepo.findByEmail(doctorEmail);
@@ -301,27 +305,28 @@ public class AppService {
         return "Request reject";
     }
 
+    @Transactional
     public String removePatient(String doctorEmail, String patientEmail) {
+        User doctor = userRepo.findByEmail(doctorEmail);
+        User patient = userRepo.findByEmail(patientEmail); // Directly fetch patient
 
-        User user=userRepo.findByEmail(doctorEmail);
-        List<User>patientList=user.getPatients();
+        // Verify relationship
+        if(patient == null || !patient.getDoctor().getEmail().equals(doctorEmail)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found under your care");
+        }
 
-        User patient=patientList.stream().filter(a->a.getEmail().equals(patientEmail)).findFirst().get();
-
-        patientList.remove(patient);
-        user.setPatients(patientList);
+        // Remove bidirectional relationship
+        doctor.getPatients().remove(patient);
         patient.setDoctor(null);
-        userRepo.save(user);
-        userRepo.save(patient);
 
-        return "Patient Removed";
+        // No need to save - transactional handles persistence
+        return "Patient removed";
     }
 
     public String requestDoctor(String userEmail, String doctorEmail) {
 
         User user=userRepo.findByEmail(userEmail);
         User doctor=userRepo.findByEmail(doctorEmail);
-
 
         PatientRequest pr=new PatientRequest();
         pr.setName(user.getName());
@@ -332,19 +337,15 @@ public class AppService {
         pr.setApproved(false);
 
         pr=patientRequestRepo.save(pr);
-
         doctor.getIncomingRequests().add(pr);
-
         userRepo.save(doctor);
 
         return "Request Successfully sent";
-
-
     }
 
-    public PatientDto getPatientInfo(String userEmail, Long id) {
+    public PatientDto getPatientInfo(String userEmail, String id) {
         User doctor=userRepo.findByEmail(userEmail);
-        User patient=userRepo.findById(id).get();
+        User patient=userRepo.findByEmail(id);
         if(!doctor.getPatients().contains(patient)) throw new RuntimeException("Unauthorized");
 
         return new PatientDto(patient);
@@ -354,5 +355,22 @@ public class AppService {
     public List<PatientRequest> getPatientRequests(String userEmail) {
         User doctor=userRepo.findByEmail(userEmail);
         return doctor.getIncomingRequests();
+    }
+
+
+    public PatientDto getDoctorDetails(String userEmail) {
+        User patient = userRepo.findByEmail(userEmail);
+        User doctor = patient.getDoctor();
+        if(doctor==null) return null;
+        PatientDto doctorDto = new PatientDto(doctor);
+        return doctorDto;
+    }
+
+    public String mailResultToDoctor(String email,Long resultId){
+        User patient=userRepo.findByEmail(email);
+        if(patient.getDoctor()==null) return null;
+        String doctorMail=patient.getDoctor().getEmail();
+        mailResult(doctorMail,resultId);
+        return "success";
     }
 }

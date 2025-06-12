@@ -45,7 +45,7 @@ public class JwtService {
         LocalDateTime ldt = LocalDateTime.now();
         Date now = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
 
-        LocalDateTime sldt = ldt.plusMinutes(1);
+        LocalDateTime sldt = ldt.plusMinutes(3);
         Date expiration = Date.from(sldt.atZone(ZoneId.systemDefault()).toInstant());
         return Jwts.builder()
                 .claims()
